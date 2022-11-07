@@ -12,17 +12,21 @@ APP_KEY = "<your app key>"
 
 events = BridgeEventStream(BRIDGE_IP, APP_KEY)
 
+
 async def process_grouped_light_event(event: HueEventGroupedLight):
     if event.on:
         print(f"Group On event for {event.group_id}.")
+
 
 async def event_task():
     events.add_event_callback(HueEventType.GroupedLight, process_grouped_light_event)
     while True:
         await events.event_listener()
 
+
 async def main():
     await asyncio.create_task(self.event_task())
+
 
 try:
     asyncio.run(main())

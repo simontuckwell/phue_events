@@ -8,6 +8,7 @@ from aiohttp.client_exceptions import ClientError
 
 log = logging.getLogger()
 
+
 @unique
 class HueClipVersion(Enum):
     CLIPv1 = 1
@@ -31,7 +32,7 @@ class HueEventType(Enum):
 
     @classmethod
     def event_types(cls):
-        return [ member.value for (name, member) in cls.__members__.items() ]
+        return [member.value for (name, member) in cls.__members__.items()]
 
 
 @unique
@@ -59,17 +60,17 @@ class HueZigbeeConnectivityStatus(Enum):
     UnidirectionalIncoming = "unidirectional_incoming"
 
 
-class HueEvent():
+class HueEvent:
     #
     # Represents a single event received from the Hue event stream.
     #
 
     # Set by subclasses to reflect their association.
     _event_type = None
-    
+
     # Choose v1 or v2 ids from the messages (v2 is the default).
     _id_version = HueClipVersion.CLIPv2
-    
+
     @classmethod
     def _get_all_subclasses(cls):
         for subclass in cls.__subclasses__():
@@ -80,9 +81,9 @@ class HueEvent():
     @classmethod
     def create_class_map(cls):
         return {
-            subclass._event_type: subclass \
-                for subclass in HueEvent._get_all_subclasses()
-            }
+            subclass._event_type: subclass
+            for subclass in HueEvent._get_all_subclasses()
+        }
 
     def __init__(self, metadata, event_data):
         if type(self).__name__ != "HueEvent":
@@ -90,16 +91,28 @@ class HueEvent():
         try:
             self._metadata = metadata
             self._event_data = event_data
-            self._id_v1 = self._event_data["id_v1"] if "id_v1" in self._event_data else None
+            self._id_v1 = (
+                self._event_data["id_v1"] if "id_v1" in self._event_data else None
+            )
             self._id_v2 = self._event_data["id"] if "id" in self._event_data else None
-            self._owner_rid = self._event_data["owner"]["rid"] if "owner" in self._event_data else None
-            self._owner_rtype = self._event_data["owner"]["rtype"] if "owner" in self._event_data else None
+            self._owner_rid = (
+                self._event_data["owner"]["rid"]
+                if "owner" in self._event_data
+                else None
+            )
+            self._owner_rtype = (
+                self._event_data["owner"]["rtype"]
+                if "owner" in self._event_data
+                else None
+            )
         except Exception as e:
-            log.exception("An exception occurred in {}".format(type(self).__name__), exc_info=e)
+            log.exception(
+                "An exception occurred in {}".format(type(self).__name__), exc_info=e
+            )
 
     def __dict__(self):
         return self._event_data
-    
+
     def __repr__(self):
         return "HueEvent: {}".format(self._event_data)
 
@@ -110,11 +123,11 @@ class HueEvent():
     @classmethod
     def id_version(cls) -> HueClipVersion:
         return cls._id_version
-    
+
     @classmethod
     def set_id_version(cls, id_version: HueClipVersion.CLIPv2):
         cls._id_version = id_version
-    
+
     @property
     def id_v1(self) -> dict:
         if self._id_v1.count("/") == 2:
@@ -129,7 +142,7 @@ class HueEvent():
 
     @property
     def id(self) -> str:
-        return self.id_v2 if self._id_version==HueClipVersion.CLIPv2 else self.id_v1
+        return self.id_v2 if self._id_version == HueClipVersion.CLIPv2 else self.id_v1
 
     @property
     def path(self) -> str:
@@ -140,7 +153,7 @@ class HueEvent():
         else:
             return None
 
-        
+
 class HueEventBridgeHome(HueEvent):
 
     _event_type = HueEventType.BridgeHome
@@ -203,11 +216,11 @@ class HueEventDevicePower(HueEvent):
     @property
     def _power_state_data(self) -> int:
         return self._event_data["power_state"]
-    
+
     @property
     def battery_level(self) -> int:
         return self._power_state_data["battery_level"]
-    
+
     @property
     def battery_state(self) -> HueDevicePowerBatteryState:
         return HueDevicePowerBatteryState(self._power_state_data["battery_state"])
@@ -250,15 +263,25 @@ class HueEventLight(HueEvent):
 
     @property
     def mirek(self) -> int:
-        return self._event_data["color_temperature"]["mirek"] if self.ct_in_msg else None
+        return (
+            self._event_data["color_temperature"]["mirek"] if self.ct_in_msg else None
+        )
 
     @property
     def mirek_valid(self) -> bool:
-        return self._event_data["color_temperature"]["mirek_valid"] if self.ct_in_msg else None
+        return (
+            self._event_data["color_temperature"]["mirek_valid"]
+            if self.ct_in_msg
+            else None
+        )
 
     @property
     def brightness(self) -> float:
-        return float(self._event_data["dimming"]["brightness"]) if self.dimming_in_msg else None
+        return (
+            float(self._event_data["dimming"]["brightness"])
+            if self.dimming_in_msg
+            else None
+        )
 
 
 class HueEventGroupedLight(HueEventLight):
@@ -287,7 +310,7 @@ class HueEventGeofenceClient(HueEvent):
     @property
     def name(self) -> dict:
         return self._event_data["name"]
-    
+
 
 class HueEventLightLevel(HueEvent):
 
@@ -299,7 +322,7 @@ class HueEventLightLevel(HueEvent):
     @property
     def _light_data(self) -> dict:
         return self._event_data["light"]
-    
+
     @property
     def light_level_valid(self) -> bool:
         return self._light_data["light_level_valid"]
@@ -395,11 +418,11 @@ class HueEventTemperature(HueEvent):
     @property
     def _temperature_data(self) -> dict:
         return self._event_data["temperature"]
-    
+
     @property
     def temperature(self) -> float:
         return self._temperature_data["temperature"]
-    
+
     @property
     def temperature_valid(self) -> bool:
         return self._temperature_data["temperature_valid"]
@@ -421,7 +444,7 @@ class HueEventZigbeeConnectivity(HueEvent):
         return HueZigbeeConnectivityStatus(self._zigbee_connectivity_data["status"])
 
 
-class HueEventClassFactory():
+class HueEventClassFactory:
     #
     # The factory returns an instantiated HueEvent subclass of the correct type.
     #
@@ -441,12 +464,14 @@ class HueEventClassFactory():
             else:
                 log.error(f"An unknown event type was encountered in {event_data}")
         except Exception as e:
-            log.exception("An exception occurred in {}".format(cls.__name__), exc_info=e)
+            log.exception(
+                "An exception occurred in {}".format(cls.__name__), exc_info=e
+            )
         finally:
             return event_class
 
 
-class HueEventMessage():
+class HueEventMessage:
     #
     # Represents an event message received from the Hue event stream.
     # The message data contains one or more events in a list of dictionaries.
@@ -485,13 +510,16 @@ class HueEventMessage():
             "msg_ts": self.msg_timestamp,
             "msg_data": self.data,
         }
-    
+
     def __repr__(self):
-        return "HueEventMessage: Id={msg_id} Timestamp={msg_ts}, Data={msg_data}".format(
-            **self.__dict__())
+        return (
+            "HueEventMessage: Id={msg_id} Timestamp={msg_ts}, Data={msg_data}".format(
+                **self.__dict__()
+            )
+        )
 
 
-class BridgeEventStream():
+class BridgeEventStream:
     #
     # This class provides access to the Hue event stream.
     # https://developers.meethue.com/develop/hue-api-v2/migration-guide-to-the-new-hue-api/#Event%20Stream
@@ -502,7 +530,9 @@ class BridgeEventStream():
     # * The HueEvent object will be passed to the callback function.
     #
 
-    def __init__(self, ip_address, username, id_version=HueClipVersion.CLIPv2, error_sleep_time=5):
+    def __init__(
+        self, ip_address, username, id_version=HueClipVersion.CLIPv2, error_sleep_time=5
+    ):
         self.event_callbacks = {}
         self.ip_address = ip_address
         self.username = username
@@ -515,29 +545,44 @@ class BridgeEventStream():
                 self.event_callbacks[event_type] = []
             if event_callback not in self.event_callbacks[event_type]:
                 self.event_callbacks[event_type].append(event_callback)
-                log.debug(f"Event type {event_type} callback handler {event_callback} added")
+                log.debug(
+                    f"Event type {event_type} callback handler {event_callback} added"
+                )
             else:
-                log.error(f"Event type {event_type} callback handler {event_callback} already known")
+                log.error(
+                    f"Event type {event_type} callback handler {event_callback} already known"
+                )
         except Exception as e:
-            log.exception("An exception occurred in {}".format(type(self).__name__), exc_info=e)
+            log.exception(
+                "An exception occurred in {}".format(type(self).__name__), exc_info=e
+            )
 
     def remove_event_callback(self, event_type: HueEventType, event_callback):
         try:
-            if event_type in self.event_callbacks and event_callback in self.event_callbacks[event_type]:
+            if (
+                event_type in self.event_callbacks
+                and event_callback in self.event_callbacks[event_type]
+            ):
                 self.event_callbacks[event_type].remove(event_callback)
-                log.debug(f"Event type {event_type} callback handler {event_callback} removed")
+                log.debug(
+                    f"Event type {event_type} callback handler {event_callback} removed"
+                )
             else:
-                log.error(f"Event type {event_type} callback handler {event_callback} unknown")
+                log.error(
+                    f"Event type {event_type} callback handler {event_callback} unknown"
+                )
         except Exception as e:
-            log.exception("An exception occurred in {}".format(type(self).__name__), exc_info=e)
+            log.exception(
+                "An exception occurred in {}".format(type(self).__name__), exc_info=e
+            )
 
     async def event_dispatcher(self, msg_id, msg_data):
         # The first part of the Philips Hue message id is a timestamp in local time.
         msg_epochtime = int(msg_id.split(":")[0])
         # This converts the epoch time into a timestamp.
         # It currently assumes the Bridge is in the same timezone.
-        #tz_name = self.get_timezone()
-        #tz = somehow_convert(tz_name) pytz?
+        # tz_name = self.get_timezone()
+        # tz = somehow_convert(tz_name) pytz?
         msg_timestamp = datetime.fromtimestamp(msg_epochtime).astimezone()
         message = HueEventMessage(msg_id, msg_timestamp, msg_data)
         for event in message:
@@ -549,9 +594,14 @@ class BridgeEventStream():
                         for event_callback in self.event_callbacks[event_type]:
                             await event_callback(event)
             except AttributeError as e:
-                log.exception(f"Unexpected event {event} passed in {message}", exc_info=e)
+                log.exception(
+                    f"Unexpected event {event} passed in {message}", exc_info=e
+                )
             except Exception as e:
-                log.exception("An exception occurred in {}".format(type(self).__name__), exc_info=e)
+                log.exception(
+                    "An exception occurred in {}".format(type(self).__name__),
+                    exc_info=e,
+                )
 
     async def event_listener(self):
         log.debug("Bridge event listener starting")
@@ -565,7 +615,7 @@ class BridgeEventStream():
             "headers": {
                 "Hue-Application-Key": self.username,
                 "Accept": "text/event-stream",
-            }
+            },
         }
         try:
             async with aiohttp.ClientSession() as client:
@@ -586,4 +636,6 @@ class BridgeEventStream():
             # Back off for a while on error.
             await asyncio.sleep(self.error_sleep_time)
         except Exception as e:
-            log.exception("An exception occurred in {}".format(type(self).__name__), exc_info=e)
+            log.exception(
+                "An exception occurred in {}".format(type(self).__name__), exc_info=e
+            )
